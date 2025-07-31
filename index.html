@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -121,30 +119,35 @@
             useEffect(() => {
                 const initFirebase = async () => {
                     try {
+                        // Initialize Firebase App
                         const app = initializeApp(firebaseConfig);
+                        // Get Firestore and Auth instances
                         const firestore = getFirestore(app);
                         const authInstance = getAuth(app);
                         setDb(firestore);
                         setAuth(authInstance);
 
-                        const unsubscribeAuth = onAuthStateChanged(authInstance, async (user) => {
-                            if (user) {
-                                setUserId(user.uid);
-                            } else {
-                                const anonymousUser = await signInAnonymously(authInstance);
-                                setUserId(anonymousUser.user.uid);
-                            }
-                            setIsAuthReady(true);
-                        });
-
+                        // Authenticate user
                         if (initialAuthToken) {
                             await signInWithCustomToken(authInstance, initialAuthToken);
                         } else {
                             await signInAnonymously(authInstance);
                         }
 
+                        // Set up auth state change listener
+                        const unsubscribeAuth = onAuthStateChanged(authInstance, (user) => {
+                            if (user) {
+                                setUserId(user.uid);
+                            } else {
+                                // This case should ideally not be reached if signInAnonymously or signInWithCustomToken succeeds
+                                // but is a fallback to ensure userId is set.
+                                setUserId(null); // Or handle re-authentication
+                            }
+                            setIsAuthReady(true); // Firebase auth is ready
+                        });
+
                         setLoading(false);
-                        return () => unsubscribeAuth();
+                        return () => unsubscribeAuth(); // Cleanup auth listener on unmount
                     } catch (err) {
                         console.error("Firebase initialization error:", err);
                         setError("Failed to initialize the app. Please try again.");
@@ -152,7 +155,7 @@
                     }
                 };
                 initFirebase();
-            }, []);
+            }, []); // Empty dependency array ensures this runs once on mount
 
             useEffect(() => {
                 if (db && userId && isAuthReady) {
